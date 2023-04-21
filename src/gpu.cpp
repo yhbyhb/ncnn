@@ -2916,6 +2916,36 @@ uint32_t VulkanDevice::get_heap_budget() const
     return memoryBudgetProperties.heapBudget[device_local_heap_index] / 1024 / 1024;
 }
 
+uint32_t VulkanDevice::get_heap_usage() const
+{
+    VkPhysicalDeviceProperties physicalDeviceProperties;
+    vkGetPhysicalDeviceProperties(info.physical_device(), &physicalDeviceProperties);
+
+    const VkPhysicalDeviceMemoryProperties& memory_properties = info.physical_device_memory_properties();
+    // the first device local heap
+    uint32_t device_local_heap_index = 0;
+    uint32_t device_local_heap_size = 0;
+    for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
+    {
+        const VkMemoryHeap& memoryHeap = memory_properties.memoryHeaps[i];
+        if (memoryHeap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
+        {
+            device_local_heap_index = i;
+            device_local_heap_size = memoryHeap.size / 1024 / 1024;
+            break;
+        }
+    }
+
+    VkPhysicalDeviceMemoryBudgetPropertiesEXT memoryBudgetProperties;
+    memoryBudgetProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT;
+    memoryBudgetProperties.pNext = 0;
+    VkPhysicalDeviceMemoryProperties2KHR memoryProperties;
+    memoryProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2_KHR;
+    memoryProperties.pNext = &memoryBudgetProperties;
+    vkGetPhysicalDeviceMemoryProperties2KHR(info.physical_device(), &memoryProperties);
+    return memoryBudgetProperties.heapUsage[device_local_heap_index] / 1024 / 1024;
+}
+
 void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& _opt) const
 {
     // buffer2buffer uop is created with use_image_storage disabled
